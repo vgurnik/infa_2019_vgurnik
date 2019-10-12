@@ -1,1 +1,1 @@
-# infa_2019_vgurnik
+# This is repository for Python task
