@@ -14,11 +14,12 @@ main_menu.add_cascade(label='Меню', menu=menu)
 mode = Menu(menu, tearoff=0)
 canv = Canvas(root, bg='black')
 canv.pack(fill=BOTH, expand=1)
-colors = ['red', 'orange', 'yellow', 'green', 'blue']
-scoreLabel = Label(text="Текущий счет: 0", font=("Comic Sans MS", 12, "bold"))
+colors = ['red', 'orange', 'yellow', 'green', 'blue', 'white', 'magenta', 'cyan']
+scoreLabel = Label(text="Текущий счет: 0, Рекорд: 0", font=("Comic Sans MS", 12, "bold"))
 scoreLabel.config(bd=0, bg='white')
 scoreLabel.pack()
 score = 0
+life = 0
 objects = []
 obj_count = 0
 difficulty = IntVar()
@@ -54,14 +55,32 @@ def new_ball():
 
 # click event listener
 def click(event):
-    global score, obj_count
+    global score, life, obj_count, high1, high2, high3
     for target in objects:
         x = (canv.coords(target[0])[0] + canv.coords(target[0])[2]) / 2     # we're getting target's coords
         y = (canv.coords(target[0])[1] + canv.coords(target[0])[3]) / 2
         r = (canv.coords(target[0])[2] - canv.coords(target[0])[0]) / 2
         if (x - event.x)**2 + (y - event.y)**2 <= r*r:  # and check if we hit it
             score += 1
-            scoreLabel['text'] = "Текущий счет: " + str(score)
+            if difficulty.get() == 1:
+                life += obj_count
+                if score > high2:
+                    high2 = score
+                    save = open("save.dat", 'w')
+                    save.write(str(high1)+'\n')
+                    save.write(str(high2)+'\n')
+                    save.write(str(high3)+'\n')
+                    save.close()
+                scoreLabel['text'] = "Текущий счет: " + str(score) + ", Жизни: " + str(life) + ", Рекорд: " + str(high2)
+            else:
+                if score > high1:
+                    high1 = score
+                    save = open("save.dat", 'w')
+                    save.write(str(high1)+'\n')
+                    save.write(str(high2)+'\n')
+                    save.write(str(high3)+'\n')
+                    save.close()
+                scoreLabel['text'] = "Текущий счет: " + str(score) + ", Рекорд: " + str(high1)
             canv.delete(target[0])  # then delete it
             objects.remove(target)
             obj_count -= 1
@@ -70,13 +89,19 @@ def click(event):
 # updater
 def update():
     # difficulty depends on score
-    global obj_count
+    global obj_count, life
     for target in objects:
         target[1] += 1      # counting lifetime
-        if target[1] > 210 - 10 * (score + 1) ** (1/3):  # this is formula for decreasing of ball's lifetime
+        if target[1] > 210 - 30 * (score + 1) ** (1/3):  # this is formula for decreasing of ball's lifetime
             canv.delete(target[0])      # the ball is dead, we remove corpse
             objects.remove(target)
             obj_count -= 1
+            if difficulty.get() == 1:
+                life -= 1
+                scoreLabel['text'] = "Текущий счет: " + str(score) + ", Жизни: " + str(life) + ", Рекорд: " + str(high2)
+                if life <= 0:
+                    mb.showinfo("Loser", "Вы проиграли\nСчет: " + str(score))
+                    new_game()
         else:
             x = (canv.coords(target[0])[0] + canv.coords(target[0])[2]) / 2     # we're getting target's coords
             y = (canv.coords(target[0])[1] + canv.coords(target[0])[3]) / 2
@@ -109,15 +134,20 @@ def update():
 
 
 def new_game():     # start new game
-    global obj_count, score
+    global obj_count, score, life
     obj_count = 0
     canv.delete(ALL)
     objects.clear()
     score = 0
-    scoreLabel['text'] = "Текущий счет: 0"
-    if difficulty.get() > 0:
-        difficulty.set(0)
-        mb.showerror("Ошибка", "Пока так нельзя")
+    life = 0
+    if difficulty.get() == 0:
+        scoreLabel['text'] = "Текущий счет: 0, Рекорд: " + str(high1)
+    elif difficulty.get() == 1:
+        scoreLabel['text'] = "Текущий счет: 0, Жизни: 10, Рекорд: " + str(high2)
+        life = 10
+    else:
+        scoreLabel['text'] = "Текущий счет: 0, Жизни: 30, Рекорд: " + str(high2)
+        life = 30
 
 
 new_ball()
@@ -127,5 +157,23 @@ mode.add_radiobutton(label='easy mode', var=difficulty, value=1, command=new_gam
 mode.add_radiobutton(label='hardcore', var=difficulty, value=2, command=new_game)
 menu.add_command(label='Новая игра', command=new_game)
 menu.add_cascade(label='Режим', menu=mode)
+saved = open("save.dat")
+arr = saved.readlines()
+saved.close()
+high1 = 0
+high2 = 0
+high3 = 0
+if len(arr) == 0:
+    saved = open("save.dat", 'w')
+    saved.writelines({"0", "0", "0"})
+    saved.close()
+else:
+    if int(arr[0]) > high1:
+        high1 = int(arr[0])
+        scoreLabel['text'] = "Текущий счет: 0, Рекорд: " + str(high1)
+    if int(arr[1]) > high2:
+        high2 = int(arr[1])
+    if int(arr[2]) > high3:
+        high3 = int(arr[2])
 root.after(10, update)
 mainloop()
